@@ -91,9 +91,7 @@ class RSSManager(object):
         interval = int(paras[0])
         await set_session_config(self.session, enable=True, interval=interval, self_id=self.self_id)
 
-        # Modify interval isn't allowed
-        self.scheduler.remove_job(self.session)
-        self.scheduler.add_job(fetch_and_send, trigger='interval', id=self.session, name=self.session, seconds=interval, args=(self.session, self.self_id))
+        self.scheduler.reschedule_job(self.session, trigger='interval', seconds=interval)
         logger.debug(f'RSS: Session job {self.session} changed the interval to {interval}s')
         await self.matcher.send('Interval changed!')
 
