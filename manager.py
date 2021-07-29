@@ -38,7 +38,11 @@ class RSSManager(object):
         try:
             result = await fetch_feed(url)
             title = result['feed']['title']
+            # Add it into db
             await add_feed(url, self.session, title, 60, self.self_id)
+            # Add it into scheduler if not exist
+            if self.scheduler.get_job(self.session) == None:
+                self.scheduler.add_job(fetch_and_send, id=self.session, name=self.session, trigger='interval', seconds=60, args=(self.session, self.self_id))
             await self.matcher.send('RSS Feed Added!')
 
             logger.debug(f'RSS: {self.session} has added a feed.')
