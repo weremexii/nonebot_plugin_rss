@@ -33,8 +33,12 @@ async def read_sessions():
     return rows
 
 async def read_session_feeds(session: str):
-    rows = await rssdb.select(f'rss_{session}')
-    return rows
+    try:
+        rows = await rssdb.select(f'rss_{session}')
+    except Exception as e:
+        rows = []
+    finally:
+        return rows
 
 async def set_session_config(session: str, enable: bool, interval: int, self_id: int):
     await rssdb.add_entry('rss_all', session=session, enable=int(enable), interval=interval, self_id=self_id)

@@ -80,7 +80,7 @@ class RSSManager(object):
                 tsp_time = time.ctime(tsp)
             feeds.append(f'[id]: {marker}\n[title]: {name}\n[status]: {enable}\n[url]: {url}\n[lastest feed got at]: {tsp_time}')
             marker += 1
-        msg = '\n\n'.join(feeds)
+        msg = '\n\n'.join(feeds) if len(rows) > 0 else 'No feed found'
         await self.matcher.send(msg)
 
     async def set_interval(self, paras: list):
