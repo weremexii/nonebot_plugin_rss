@@ -29,6 +29,10 @@ async def start():
     for job in scheduler.get_jobs():
         logger.debug(str(job))
 
+@nonebot.get_driver().on_shutdown
+async def close():
+    await rssdb.close()
+
 @rss.handle()
 async def _(bot: Bot, event: Event):
     cmds = event.get_plaintext().strip().split()

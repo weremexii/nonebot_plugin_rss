@@ -53,5 +53,5 @@ class RSSDB(object):
 
         await self.conn.execute(query)
 
-    async def __del__(self):
+    async def close(self):
         await self.conn.close()
