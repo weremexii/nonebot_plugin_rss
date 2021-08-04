@@ -1,3 +1,4 @@
+import os
 import nonebot
 from nonebot import on_command
 from nonebot.log import logger
@@ -8,6 +9,9 @@ from apscheduler.schedulers.asyncio import AsyncIOScheduler
 
 from .core import *
 from .manager import RSSManager, allowed_user
+
+if not os.path.exists('data'):
+    os.mkdir('data')
 
 rss = on_command('rss', permission=allowed_user())
 rss_db_path = nonebot.get_driver().config.rss_db
