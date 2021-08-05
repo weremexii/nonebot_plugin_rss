@@ -1,4 +1,5 @@
 import os
+
 import nonebot
 from nonebot import on_command
 from nonebot.log import logger
@@ -7,25 +8,30 @@ from nonebot.adapters.cqhttp.event import Event
 
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 
-from .core import *
+from . import core
 from .manager import RSSManager, allowed_user
 
 if not os.path.exists('data'):
     os.mkdir('data')
 
 rss = on_command('rss', permission=allowed_user())
-rss_db_path = nonebot.get_driver().config.rss_db
 scheduler = AsyncIOScheduler()
+
 
 @nonebot.get_driver().on_startup
 async def start():
-    await rssdb.init()
-    await init_session_table()
-    rows = await read_sessions()
+    await core.rssdb.init()
+    await core.init_session_table()
+    rows = await core.read_sessions()
     for row in rows:
         session, enable, interval, self_id = row
         if enable:
-            scheduler.add_job(fetch_and_send, id=session, name=session, trigger='interval', seconds=interval, args=(session, self_id))
+            scheduler.add_job(core.fetch_and_send,
+                              id=session,
+                              name=session,
+                              trigger='interval',
+                              seconds=interval,
+                              args=(session, self_id))
 
     scheduler.start()
     logger.info('RSS: APScheduler start.')
@@ -33,14 +39,16 @@ async def start():
     for job in scheduler.get_jobs():
         logger.debug(str(job))
 
+
 @nonebot.get_driver().on_shutdown
 async def close():
-    await rssdb.close()
+    await core.rssdb.close()
+
 
 @rss.handle()
 async def _(bot: Bot, event: Event):
-    cmds = event.get_plaintext().strip().split()
-    cmd, paras = cmds[0], cmds[1:]
+    temp = event.get_plaintext().strip().split()
+    cmd, paras = temp[0], temp[1:]
     manager = RSSManager(rss, bot, event, scheduler)
     cmd_dict = {
         'add': manager.add,

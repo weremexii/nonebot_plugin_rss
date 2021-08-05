@@ -1,9 +1,9 @@
 import aiosqlite
 
+
 class RSSDB(object):
     def __init__(self, db_path: str):
         self.db_path = db_path
-
 
     async def init(self):
         self.conn = await aiosqlite.connect(self.db_path)
@@ -19,7 +19,7 @@ class RSSDB(object):
         await self.conn.commit()
 
     async def create_table(self, table_name: str, **kwargs):
-        props = ','.join([ key+' '+value for key, value in kwargs.items()])
+        props = ','.join([key+' '+value for key, value in kwargs.items()])
 
         query = f'CREATE TABLE IF NOT EXISTS {table_name} ( {props} )'
 
