@@ -1,2 +1,11 @@
-__pycache__
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# IDE configuration
 .vscode
+.idea
+
+# Filesystem file
+.DS_Store
