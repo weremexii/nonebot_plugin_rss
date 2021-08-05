@@ -72,7 +72,7 @@ class RSSManager(object):
             for target in paras:
                 if target.isdigit():
                     target = int(target)
-                    url, name, _, _ = rows[target]
+                    url, name, _, _, _ = rows[target]
                     await core.delete_session_feed(self.session, url)
                     await self.matcher.send(f'Delete {name}')
                 else:
@@ -88,13 +88,13 @@ class RSSManager(object):
         feeds = []
         marker = 0
         for row in rows:
-            url, name, enable, tsp = row
+            url, name, enable, tsp, failure = row
             enable = '✔' if enable == 1 else '✖'
             if tsp == 0.0:
                 tsp_time = 'Never'
             else:
                 tsp_time = time.ctime(tsp)
-            feeds.append(f'[id]: {marker}\n[title]: {name}\n[status]: {enable}\n[url]: {url}\n[lastest feed got at]: {tsp_time}')
+            feeds.append(f'[id]: {marker}\n[title]: {name}\n[status]: {enable}\n[url]: {url}\n[lastest feed got at]: {tsp_time}\n[failure]: {failure}')
             marker += 1
         msg = '\n\n'.join(feeds) if len(rows) > 0 else 'No feed found'
         await self.matcher.send(msg)
@@ -114,14 +114,14 @@ class RSSManager(object):
         rows = await core.read_session_feeds(self.session)
         if 'all' in paras:
             for row in rows:
-                url, _, _, _ = row
+                url, _, _, _, _ = row
                 await core.set_feed_config(self.session, url, enable=True)
                 await self.matcher.send(f'Enable ALL')
         else:
             for target in paras:
                 if target.isdigit():
                     target = int(target)
-                    url, name, _, _ = rows[target]
+                    url, name, _, _, _ = rows[target]
                     await core.set_feed_config(self.session, url=url, enable=True)
                     await self.matcher.send(f'Enable {name}')
                 else:
@@ -132,14 +132,14 @@ class RSSManager(object):
         rows = await core.read_session_feeds(self.session)
         if 'all' in paras:
             for row in rows:
-                url, _, _, _ = row
+                url, _, _, _, _ = row
                 await core.set_feed_config(self.session, url, enable=False)
                 await self.matcher.send(f'Disable ALL')
         else:
             for target in paras:
                 if target.isdigit():
                     target = int(target)
-                    url, name, _, _ = rows[target]
+                    url, name, _, _, _ = rows[target]
                     await core.set_feed_config(self.session, url, enable=False)
                     await self.matcher.send(f'Disable {name}')
                 else:

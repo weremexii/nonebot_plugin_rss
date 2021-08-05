@@ -6,9 +6,10 @@ from time import mktime
 
 from .sqlite import RSSDB
 
-rss_db_path = nonebot.get_driver().config.rss_db
-proxy = nonebot.get_driver().config.proxy
+rss_db_path = nonebot.get_driver().config.rss_db or 'data/rss.db'
+rss_max_retry = nonebot.get_driver().config.rss_max_retry or 5
 rss_header = nonebot.get_driver().config.header
+proxy = nonebot.get_driver().config.proxy
 
 rssdb = RSSDB(rss_db_path)
 
@@ -43,7 +44,7 @@ async def set_feed_config(session: str, url: str, **changes):
     rows = await rssdb.select(f'rss_{session}', url=url)
 
     # Supposing it has only one
-    _, name, enable, tsp = rows[0]
+    _, name, enable, tsp, failure = rows[0]
     if changes.get('name'):
         name = changes['name']
     # Pay attention to the special value of key_enable and key_tsp
@@ -52,7 +53,7 @@ async def set_feed_config(session: str, url: str, **changes):
     if 'tsp' in changes.keys():
         tsp = changes['tsp']
 
-    await rssdb.add_entry(f'rss_{session}', url=url, name=name, enable=enable, tsp=tsp)
+    await rssdb.add_entry(f'rss_{session}', url=url, name=name, enable=enable, tsp=tsp, failure=failure)
 
 
 async def delete_session_feed(session: str, url: str):
@@ -75,13 +76,15 @@ async def add_feed(url: str, session: str, name: str, interval: int, self_id: in
                              url='text primary key not null',
                              name='text',
                              enable='int not null',
-                             tsp='float not null')
+                             tsp='float not null',
+                             failure='int not null')
 
     await rssdb.add_entry(f'rss_{session}',
                           url=url,
                           name=name,
                           enable=1,
-                          tsp=0.0)
+                          tsp=0.0,
+                          failure=0)
 
 
 async def fetch_feed(url: str):
@@ -117,37 +120,50 @@ async def get_newer_feed(url: str, last_tsp: float):
     return unsent_entries, latest_tsp
 
 
-async def parse_and_send(entries: list, session: str, session_name: str, self_id: int):
+async def send(msg: str, session: str, self_id: int):
     bot = nonebot.get_driver().bots[str(self_id)]
 
     session_id, session_type = session.split('_')
     session_id = int(session_id)
+    if session_type == 'group':
+        await bot.send_msg(group_id=session_id, message=msg, auto_escape=True)
+    elif session_type == 'private':
+        await bot.send_msg(user_id=session_id, message=msg, auto_escape=True)
+
+
+async def parse_and_send(entries: list, session_name: str, session: str, self_id: int):
     for entry in entries:
         # Parse feed
         title = entry['title']
         link = entry['link']
 
         msg = f'{session_name}\n{title}\n( {link} )'
-        if session_type == 'group':
-            await bot.send_msg(group_id=session_id, message=msg, auto_escape=True)
-        elif session_type == 'private':
-            await bot.send_msg(user_id=session_id, message=msg, auto_escape=True)
+        await send(msg, session, self_id)
 
 
 async def fetch_and_send(session: str, self_id: int):
     rows = await rssdb.select(f'rss_{session}')
     logger.debug(f'RSS: Scheduled session {session} job running. Fetching the following feeds:')
     for row in rows:
-        url, name, enable, tsp = row
+        url, name, enable, tsp, failure = row
         if enable:
             logger.debug('RSS: Fetching ' + url)
             try:
                 unsent_entries, latest_tsp = await get_newer_feed(url, tsp)
                 if len(unsent_entries) > 0:
-                    await rssdb.add_entry(f'rss_{session}', url=url, name=name, enable=enable, tsp=latest_tsp)
-                    await parse_and_send(unsent_entries, session, name, self_id)
+                    await parse_and_send(unsent_entries, name, session, self_id)
+                    await rssdb.update_entry(f'rss_{session}', ('tsp', latest_tsp), {'url': url})
+                    await rssdb.update_entry(f'rss_{session}', ('failure', 0), {'url': url})
+                    #await rssdb.add_entry(f'rss_{session}', url=url, name=name, enable=enable, tsp=latest_tsp)
 
                 logger.debug('RSS: Done.')
             except Exception as e:
                 logger.error('RSS: Fetching failed.')
                 logger.error(str(e))
+
+                failure += 1
+                if failure == rss_max_retry:
+                    await rssdb.add_entry(f'rss_{session}', url=url, name=name, enable=0, tsp=tsp, failure=0)
+                    await send(f'Disable {name} for update error for 5 times', session, self_id)
+                else:
+                    await rssdb.update_entry(f'rss_{session}', ('failure', failure), {'url': url})

@@ -18,6 +18,16 @@ class RSSDB(object):
         await self.conn.execute(query, values)
         await self.conn.commit()
 
+    async def update_entry(self, table_name: str, update_tuple: tuple, conditions: dict):
+        cons = ' AND '.join([key+'= ?' for key in conditions.keys()])
+        update = f'{update_tuple[0]} = ?'
+        values = (update_tuple[1], *conditions.values())
+
+        query = f'UPDATE {table_name} SET {update} WHERE {cons}'
+
+        await self.conn.execute(query, values)
+        await self.conn.commit()
+
     async def create_table(self, table_name: str, **kwargs):
         props = ','.join([key+' '+value for key, value in kwargs.items()])
 
